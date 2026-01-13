@@ -1,158 +1,144 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Paper Foundry — Drop Anything</title>  <!-- JSZip for ZIP / GZ / TAR -->  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>  <!-- Supabase -->  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>  <!-- llama.cpp WASM (TinyLlama compatible) -->  <script src="https://cdn.jsdelivr.net/npm/@llama-node/llama-cpp@0.1.6/dist/llama.js"></script>  <style>
-    body { font-family: system-ui; background:#0b0b12; color:#eaeaf0; margin:0; padding:20px }
-    h1 { font-size:20px }
-    .box { border:2px dashed #555; padding:20px; margin:15px 0 }
-    button { padding:10px 14px; background:#6b46c1; color:white; border:none; cursor:pointer }
-    textarea { width:100%; height:120px; background:#111; color:#0f0 }
-    pre { background:#000; padding:10px; overflow:auto }
-  </style></head>
-<body><h1>📦 Paper Foundry — Drop → Unpack → Store → Reason</h1><!-- ================= SUPABASE CONFIG ================= --><script>
-  // 🔴 THIS IS WHERE YOUR SUPABASE KEY GOES 🔴
-  const SUPABASE_URL = "https://prhwckcdllnepbsjzseu.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_SRWchEolqLlBrAulow7VuA_Qa_xUrTR";
+<meta charset="UTF-8" />
+<title>Paper Foundry — Local</title>
 
-  const supabase = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-  );
-</script><!-- =================================================== --><div class="box">
-  <h3>1️⃣ Drop Files (ZIP / GZ / Anything)</h3>
-  <input type="file" id="fileInput" multiple />
-  <pre id="fileLog"></pre>
-</div><div class="box">
-  <h3>2️⃣ Upload to Supabase Storage</h3>
-  <button onclick="uploadToSupabase()">Upload Parsed Files</button>
-  <pre id="uploadLog"></pre>
-</div><div class="box">
-  <h3>3️⃣ Load TinyLlama (GGUF)</h3>
-  <input type="file" id="modelInput" accept=".gguf" />
-  <button onclick="loadModel()">Load Model</button>
-  <pre id="modelLog"></pre>
-</div><div class="box">      border: 2px dashed #6366f1;
-      border-radius: 8px;
-      padding: 20px;
-      text-align: center;
-      cursor: pointer;
-      margin-bottom: 12px;
-    }
-    button {
-      background: #6366f1;
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      margin-top: 6px;
-    }
-    textarea {
-      width: 100%;
-      min-height: 120px;
-      background: #020617;
-      color: #e5e7eb;
-      border: 1px solid #334155;
-      border-radius: 6px;
-      padding: 8px;
-    }
-    pre {
-      background: #020617;
-      padding: 8px;
-      border-radius: 6px;
-      font-size: 12px;
-      max-height: 300px;
-      overflow: auto;
-    }
-  </style></head>
-<body>
-  <header>
-    🌀 Foundry Dropzone (TinyLlama Local)
-    <span id="modelStatus">Model: not loaded</span>
-  </header>  <main>
-    <section>
-      <h3>📦 Drop Files (ZIP / GZ / ANY)</h3>
-      <div class="dropzone" id="dropzone">Drop files here or click</div>
-      <pre id="fileOutput"></pre>
-    </section><section>
-  <h3>🧠 TinyLlama (Local LLM)</h3>
-  <button onclick="loadModel()">Load TinyLlama</button>
-  <textarea id="prompt" placeholder="Ask the model about the files…"></textarea>
-  <button onclick="runLLM()">Run</button>
-  <pre id="llmOutput"></pre>
-</section>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm/dist/index.min.js"></script>
 
-  </main><script>
-let engine;
-let extractedText = "";
-
-const dropzone = document.getElementById("dropzone");
-dropzone.addEventListener("click", () => {
-  const input = document.createElement("input");
-  input.type = "file";
-  input.multiple = true;
-  input.onchange = e => handleFiles(e.target.files);
-  input.click();
-});
-
-dropzone.addEventListener("dragover", e => e.preventDefault());
-dropzone.addEventListener("drop", e => {
-  e.preventDefault();
-  handleFiles(e.dataTransfer.files);
-});
-
-async function handleFiles(files) {
-  extractedText = "";
-  const out = [];
-
-  for (const file of files) {
-    out.push(`📄 ${file.name}`);
-
-    if (file.name.endsWith('.zip')) {
-      const zip = await JSZip.loadAsync(await file.arrayBuffer());
-      for (const name in zip.files) {
-        const content = await zip.files[name].async("string");
-        extractedText += `\n# ${name}\n${content}`;
-      }
-    } else if (file.name.endsWith('.gz')) {
-      const buf = new Uint8Array(await file.arrayBuffer());
-      const text = new TextDecoder().decode(pako.ungzip(buf));
-      extractedText += `\n# ${file.name}\n${text}`;
-    } else {
-      const text = await file.text();
-      extractedText += `\n# ${file.name}\n${text}`;
-    }
-  }
-
-  document.getElementById("fileOutput").textContent = out.join("\n");
+<style>
+body {
+  background:#0b0f1a;
+  color:#e5e7eb;
+  font-family:monospace;
+  margin:0;
+  padding:20px;
 }
+.box {
+  border:2px dashed #6366f1;
+  border-radius:8px;
+  padding:20px;
+  margin-bottom:16px;
+}
+button {
+  background:#6366f1;
+  color:white;
+  border:none;
+  padding:8px 12px;
+  border-radius:6px;
+  cursor:pointer;
+}
+textarea {
+  width:100%;
+  min-height:120px;
+  background:#020617;
+  color:#e5e7eb;
+  border:1px solid #334155;
+  border-radius:6px;
+  padding:8px;
+}
+pre {
+  background:#020617;
+  padding:8px;
+  border-radius:6px;
+  max-height:300px;
+  overflow:auto;
+}
+</style>
+</head>
+
+<body>
+
+<h2>🧱 Paper Foundry</h2>
+
+<!-- ================= SUPABASE ================= -->
+<div class="box">
+<h3>Supabase</h3>
+<pre id="supabaseStatus">Not connected</pre>
+</div>
+
+<!-- ================= DROPZONE ================= -->
+<div class="box" id="dropzone">
+<h3>📦 Drop Files (ZIP / GZ / ANY)</h3>
+<p>Drop files here or click</p>
+<input type="file" id="fileInput" multiple />
+</div>
+
+<pre id="fileOutput"></pre>
+
+<!-- ================= TINYLLAMA ================= -->
+<div class="box">
+<h3>🧠 TinyLlama (WebLLM)</h3>
+<button onclick="loadModel()">Load TinyLlama</button>
+<textarea id="prompt" placeholder="Ask the model about the files..."></textarea>
+<button onclick="runModel()">Run</button>
+<pre id="modelOutput"></pre>
+</div>
+
+<script>
+/* ================= SUPABASE ================= */
+
+const SUPABASE_URL = "https://prhwckcdllnepbsjzseu.supabase.co";
+const SUPABASE_KEY = "sb_publishable_REPLACE_THIS_KEY";
+
+const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_KEY);
+document.getElementById("supabaseStatus").textContent = "Supabase initialized";
+
+/* ================= FILE INGEST ================= */
+
+const output = document.getElementById("fileOutput");
+
+document.getElementById("fileInput").onchange = async (e) => {
+  for (const file of e.target.files) {
+    await handleFile(file);
+  }
+};
+
+async function handleFile(file) {
+  output.textContent += `\n--- ${file.name} ---\n`;
+
+  const buf = new Uint8Array(await file.arrayBuffer());
+
+  if (file.name.endsWith(".zip")) {
+    const files = fflate.unzipSync(buf);
+    for (const name in files) {
+      output.textContent += `\n[ZIP] ${name}\n`;
+      output.textContent += new TextDecoder().decode(files[name]).slice(0,2000);
+    }
+  } 
+  else if (file.name.endsWith(".gz")) {
+    const data = fflate.gunzipSync(buf);
+    output.textContent += new TextDecoder().decode(data).slice(0,2000);
+  } 
+  else {
+    output.textContent += new TextDecoder().decode(buf).slice(0,2000);
+  }
+}
+
+/* ================= TINYLLAMA ================= */
+
+let engine = null;
 
 async function loadModel() {
-  document.getElementById("modelStatus").textContent = "Model: loading…";
-
-  engine = await webllm.createEngine({
-    model: "TinyLlama-1.1B-Chat-v1.0-q4f16_1",
-    cache: true
-  });
-
-  document.getElementById("modelStatus").textContent = "Model: TinyLlama ready";
+  engine = await webllm.createEngine("TinyLlama-1.1B-Chat-v1.0-q4f16_1");
+  document.getElementById("modelOutput").textContent = "Model loaded";
 }
 
-async function runLLM() {
+async function runModel() {
   if (!engine) return alert("Load model first");
-
   const prompt = document.getElementById("prompt").value;
 
-  const response = await engine.chat.completions.create({
-    messages: [
-      { role: "system", content: "You are a local code-analysis agent." },
-      { role: "user", content: extractedText.slice(0, 6000) + "\n\n" + prompt }
-    ],
-    temperature: 0.2
+  const reply = await engine.chat.completions.create({
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 256
   });
 
-  document.getElementById("llmOutput").textContent = response.choices[0].message.content;
+  document.getElementById("modelOutput").textContent =
+    reply.choices[0].message.content;
 }
-</script></body>
+</script>
+
+</body>
 </html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🧰 Foundry Dropzone + TinyLlama</title>  <!-- WebLLM (MLC) -->  <script src="https://unpkg.com/@mlc-ai/web-llm/dist/index.js"></script>  <!-- JSZip for ZIP handling -->  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>  <!-- pako for gzip -->  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #0f1220;
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      padding: 12px 16px;
+      background: #111827;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 12px;
+    }
+    section {
+      background: #111827;
+      border-radius: 8px;
+      padding: 12px;
+      overflow: auto;
+    }
+    .dropzone {
+      border: 2px dashed #6366f1;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    button {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      background: #020617;
+      color: #e5e7eb;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 8px;
+    }
+    pre {
+      background: #020617;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      max-height: 300px;
+      overflow: auto;
+    }
+  </style></head>
+<body>
+  <header>
+    🌀 Foundry Dropzone (TinyLlama Local)
+    <span id="modelStatus">Model: not loaded</span>
+  </header>  <main>
+    <section>
+      <h3>📦 Drop Files (ZIP / GZ / ANY)</h3>
+      <div class="dropzone" id="dropzone">Drop files here or click</div>
+      <pre id="fileOutput"></pre>
+    </section><section>
+  <h3>🧠 TinyLlama (Local LLM)</h3>
+  <button onclick="loadModel()">Load TinyLlama</button>
+  <textarea id="prompt" placeholder="Ask the model about the files…"></textarea>
+  <button onclick="runLLM()">Run</button>
+  <pre id="llmOutput"></pre>
+</section>
+
+  </main><script>
+let engine;
+let extractedText = "";
+
+const dropzone = document.getElementById("dropzone");
+dropzone.addEventListener("click", () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.multiple = true;
+  input.onchange = e => handleFiles(e.target.files);
+  input.click();
+});
+
+dropzone.addEventListener("dragover", e => e.preventDefault());
+dropzone.addEventListener("drop", e => {
+  e.preventDefault();
+  handleFiles(e.dataTransfer.files);
+});
+
+async function handleFiles(files) {
+  extractedText = "";
+  const out = [];
+
+  for (const file of files) {
+    out.push(`📄 ${file.name}`);
+
+    if (file.name.endsWith('.zip')) {
+      const zip = await JSZip.loadAsync(await file.arrayBuffer());
+      for (const name in zip.files) {
+        const content = await zip.files[name].async("string");
+        extractedText += `\n# ${name}\n${content}`;
+      }
+    } else if (file.name.endsWith('.gz')) {
+      const buf = new Uint8Array(await file.arrayBuffer());
+      const text = new TextDecoder().decode(pako.ungzip(buf));
+      extractedText += `\n# ${file.name}\n${text}`;
+    } else {
+      const text = await file.text();
+      extractedText += `\n# ${file.name}\n${text}`;
+    }
+  }
+
+  document.getElementById("fileOutput").textContent = out.join("\n");
+}
+
+async function loadModel() {
+  document.getElementById("modelStatus").textContent = "Model: loading…";
+
+  engine = await webllm.createEngine({
+    model: "TinyLlama-1.1B-Chat-v1.0-q4f16_1",
+    cache: true
+  });
+
+  document.getElementById("modelStatus").textContent = "Model: TinyLlama ready";
+}
+
+async function runLLM() {
+  if (!engine) return alert("Load model first");
+
+  const prompt = document.getElementById("prompt").value;
+
+  const response = await engine.chat.completions.create({
+    messages: [
+      { role: "system", content: "You are a local code-analysis agent." },
+      { role: "user", content: extractedText.slice(0, 6000) + "\n\n" + prompt }
+    ],
+    temperature: 0.2
+  });
+
+  document.getElementById("llmOutput").textContent = response.choices[0].message.content;
+}
+</script></body>
+</html>

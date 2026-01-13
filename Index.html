@@ -2,39 +2,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🧰 Foundry Dropzone + TinyLlama</title>  <!-- WebLLM (MLC) -->  <script src="https://unpkg.com/@mlc-ai/web-llm/dist/index.js"></script>  <!-- JSZip for ZIP handling -->  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>  <!-- pako for gzip -->  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>  <style>
-    body {
-      margin: 0;
-      font-family: system-ui, sans-serif;
-      background: #0f1220;
-      color: #e5e7eb;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-    header {
-      padding: 12px 16px;
-      background: #111827;
-      font-weight: bold;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    main {
-      flex: 1;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      padding: 12px;
-    }
-    section {
-      background: #111827;
-      border-radius: 8px;
-      padding: 12px;
-      overflow: auto;
-    }
-    .dropzone {
-      border: 2px dashed #6366f1;
+  <title>Paper Foundry — Drop Anything</title>  <!-- JSZip for ZIP / GZ / TAR -->  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>  <!-- Supabase -->  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>  <!-- llama.cpp WASM (TinyLlama compatible) -->  <script src="https://cdn.jsdelivr.net/npm/@llama-node/llama-cpp@0.1.6/dist/llama.js"></script>  <style>
+    body { font-family: system-ui; background:#0b0b12; color:#eaeaf0; margin:0; padding:20px }
+    h1 { font-size:20px }
+    .box { border:2px dashed #555; padding:20px; margin:15px 0 }
+    button { padding:10px 14px; background:#6b46c1; color:white; border:none; cursor:pointer }
+    textarea { width:100%; height:120px; background:#111; color:#0f0 }
+    pre { background:#000; padding:10px; overflow:auto }
+  </style></head>
+<body><h1>📦 Paper Foundry — Drop → Unpack → Store → Reason</h1><!-- ================= SUPABASE CONFIG ================= --><script>
+  // 🔴 THIS IS WHERE YOUR SUPABASE KEY GOES 🔴
+  const SUPABASE_URL = "https://prhwckcdllnepbsjzseu.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_SRWchEolqLlBrAulow7VuA_Qa_xUrTR";
+
+  const supabase = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+</script><!-- =================================================== --><div class="box">
+  <h3>1️⃣ Drop Files (ZIP / GZ / Anything)</h3>
+  <input type="file" id="fileInput" multiple />
+  <pre id="fileLog"></pre>
+</div><div class="box">
+  <h3>2️⃣ Upload to Supabase Storage</h3>
+  <button onclick="uploadToSupabase()">Upload Parsed Files</button>
+  <pre id="uploadLog"></pre>
+</div><div class="box">
+  <h3>3️⃣ Load TinyLlama (GGUF)</h3>
+  <input type="file" id="modelInput" accept=".gguf" />
+  <button onclick="loadModel()">Load Model</button>
+  <pre id="modelLog"></pre>
+</div><div class="box">      border: 2px dashed #6366f1;
       border-radius: 8px;
       padding: 20px;
       text-align: center;
